@@ -1,1 +1,3 @@
-// Config Mod
+//! Config Mod
+
+pub mod types;
