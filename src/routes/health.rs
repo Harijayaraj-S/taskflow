@@ -2,6 +2,11 @@
 
 use axum::response::Html;
 
-pub async fn handler() -> Html<&'static str> {
-    Html("<h1>Taskflow server is running!</h1>")
+use crate::state::ExtAppState;
+
+pub async fn handler(state: ExtAppState) -> Html<String> {
+    Html(format!(
+        "<h1>Taskflow server is running in {:?} Env</h1>",
+        state.config.env
+    ))
 }
