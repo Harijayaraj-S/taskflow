@@ -5,7 +5,10 @@ use axum::Extension;
 use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt};
 
-use crate::{config::types::AppConfig, state::types::AppState};
+use crate::{
+    config::types::AppConfig,
+    state::{db::DbManager, types::AppState},
+};
 
 mod app;
 mod config;
@@ -33,7 +36,7 @@ async fn main() -> Result<()> {
     let config = AppConfig::new()?;
     let addr = config.get_addr();
     let listener = TcpListener::bind(addr).await?;
-    let state = AppState::new(&config);
+    let state = AppState::new(&config).await?;
 
     println!("listening on {}", listener.local_addr()?);
     tracing::debug!(
