@@ -3,10 +3,7 @@
 //! Database Manager
 
 use anyhow::{Context, Result};
-use sqlx::{
-    Pool, Postgres,
-    postgres::{PgPool, PgPoolOptions},
-};
+use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 use std::time::Duration;
 use tracing::info;
 

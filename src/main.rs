@@ -5,13 +5,11 @@ use axum::Extension;
 use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt};
 
-use crate::{
-    config::types::AppConfig,
-    state::{db::DbManager, types::AppState},
-};
+use crate::{config::types::AppConfig, state::types::AppState};
 
 mod app;
 mod config;
+mod repositories;
 mod routes;
 mod state;
 
