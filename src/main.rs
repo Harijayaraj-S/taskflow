@@ -9,8 +9,11 @@ use crate::{config::types::AppConfig, state::types::AppState};
 
 mod app;
 mod config;
+mod domain;
+mod middleware;
 mod repositories;
 mod routes;
+mod service;
 mod state;
 
 fn tracing_int() -> Result<()> {
