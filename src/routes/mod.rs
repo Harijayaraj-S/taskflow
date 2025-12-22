@@ -2,6 +2,7 @@
 
 use axum::{Router, routing::get};
 
+mod auth;
 mod health;
 
 pub fn buid() -> Router {

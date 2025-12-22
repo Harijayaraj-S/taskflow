@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub port: u16,
     pub host: String,
     pub env: AppEnv,
+    pub jwt_secret: String,
 }
 
 #[derive(Debug, Deserialize, Clone)]

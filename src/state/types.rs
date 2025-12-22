@@ -10,6 +10,7 @@ use crate::{config::types::AppConfig, state::db::DbManager};
 pub struct AppState {
     pub config: AppConfig,
     pub db: DbManager,
+    pub jwt_secret: String,
 }
 
 impl AppState {
@@ -18,6 +19,7 @@ impl AppState {
         let app_state = AppState {
             config: config.clone(),
             db,
+            jwt_secret: config.jwt_secret.clone(),
         };
 
         Ok(Arc::new(app_state))

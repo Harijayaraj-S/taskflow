@@ -10,6 +10,7 @@ use crate::{config::types::AppConfig, state::types::AppState};
 mod app;
 mod config;
 mod domain;
+mod error;
 mod middleware;
 mod repositories;
 mod routes;
