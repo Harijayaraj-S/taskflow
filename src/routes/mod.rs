@@ -6,5 +6,7 @@ mod auth;
 mod health;
 
 pub fn buid() -> Router {
-    Router::new().route("/health", get(health::handler))
+    Router::new()
+        .nest("/auth", auth::routes())
+        .route("/health", get(health::handler))
 }

@@ -21,12 +21,10 @@ pub enum AppEnv {
 
 impl AppConfig {
     pub fn new() -> Result<Self> {
+        println!("{:?}", std::env::var("APP_JWT_SECRET"));
+
         let config = Config::builder()
-            .add_source(
-                config::Environment::with_prefix("APP")
-                    .try_parsing(true)
-                    .separator("_"),
-            )
+            .add_source(config::Environment::with_prefix("APP").try_parsing(true))
             .build()?;
 
         let app: AppConfig = config.try_deserialize()?;
