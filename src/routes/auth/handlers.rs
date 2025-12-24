@@ -4,8 +4,9 @@ use axum::{Extension, Json};
 
 use crate::{
     error::{CommonResult, app::AppError},
+    middleware::auth::AuthUser,
     repositories::user,
-    routes::auth::types::{AuthTokenResponse, LoginRequest, SignupRequest},
+    routes::auth::types::{AuthTokenResponse, AuthUserDetail, LoginRequest, SignupRequest},
     service::auth,
     state::ExtAppState,
 };
@@ -49,4 +50,8 @@ pub async fn login(
         access_token: token,
         expires_in: 3600,
     }))
+}
+
+pub async fn me(auth: AuthUser) -> CommonResult<AuthUserDetail> {
+    Ok(Json(AuthUserDetail { id: auth.user_id }))
 }

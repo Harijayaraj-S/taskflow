@@ -1,6 +1,7 @@
 //! Routes - Auth - Types
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct SignupRequest {
@@ -18,4 +19,9 @@ pub struct LoginRequest {
 pub struct AuthTokenResponse {
     pub access_token: String,
     pub expires_in: u32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthUserDetail {
+    pub id: Uuid,
 }
