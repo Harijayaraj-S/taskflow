@@ -18,3 +18,11 @@ pub async fn create(
 
     Ok(Json(task))
 }
+
+pub async fn list(auth: AuthUser, Extension(state): ExtAppState) -> CommonResult<Vec<Task>> {
+    let pool = state.db.pool();
+
+    let tasks = task::list_by_user(pool, auth.user_id).await?;
+
+    Ok(Json(tasks))
+}

@@ -28,3 +28,17 @@ pub async fn create(
     .fetch_one(pool)
     .await
 }
+
+pub async fn list_by_user(pool: &PgPool, user_id: Uuid) -> Result<Vec<Task>, sqlx::Error> {
+    sqlx::query_as!(
+        Task,
+        r#"
+        SELECT * FROM tasks
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        "#,
+        user_id
+    )
+    .fetch_all(pool)
+    .await
+}
