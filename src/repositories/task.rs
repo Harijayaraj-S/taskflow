@@ -42,3 +42,29 @@ pub async fn list_by_user(pool: &PgPool, user_id: Uuid) -> Result<Vec<Task>, sql
     .fetch_all(pool)
     .await
 }
+
+pub async fn update_task(
+    pool: &sqlx::PgPool,
+    task_id: Uuid,
+    user_id: Uuid,
+    title: Option<&str>,
+    description: Option<&str>,
+) -> Result<Task, sqlx::Error> {
+    sqlx::query_as!(
+        Task,
+        r#"
+        UPDATE tasks
+        SET
+            title = COALESCE($3, title),
+            description = COALESCE($4, description)
+        WHERE id = $1 AND user_id = $2
+        RETURNING *
+        "#,
+        task_id,
+        user_id,
+        title,
+        description
+    )
+    .fetch_one(pool)
+    .await
+}

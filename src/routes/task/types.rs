@@ -9,3 +9,9 @@ pub struct CreateTaskInput {
     #[serde(default)]
     pub description: String,
 }
+
+#[derive(Deserialize)]
+pub struct UpdateTaskRequest {
+    pub title: Option<String>,
+    pub description: Option<String>,
+}
