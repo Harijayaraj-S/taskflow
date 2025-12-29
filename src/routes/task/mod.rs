@@ -2,7 +2,7 @@
 
 use axum::{
     Router,
-    routing::{get, patch, post},
+    routing::{delete, get, patch, post},
 };
 
 mod handlers;
@@ -13,4 +13,5 @@ pub fn routes() -> Router {
         .route("/", post(handlers::create))
         .route("/", get(handlers::list))
         .route("/{id}", patch(handlers::update))
+        .route("/{id}", delete(handlers::delete))
 }

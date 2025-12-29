@@ -68,3 +68,22 @@ pub async fn update_task(
     .fetch_one(pool)
     .await
 }
+
+pub async fn delete_task(
+    pool: &sqlx::PgPool,
+    task_id: Uuid,
+    user_id: Uuid,
+) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query!(
+        r#"
+        DELETE FROM tasks
+        WHERE id = $1 AND user_id = $2
+        "#,
+        task_id,
+        user_id
+    )
+    .execute(pool)
+    .await?;
+
+    Ok(result.rows_affected() != 0)
+}

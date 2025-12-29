@@ -50,3 +50,15 @@ pub async fn update(
 
     Ok(Json(task))
 }
+
+pub async fn delete(
+    auth: AuthUser,
+    Path(task_id): Path<uuid::Uuid>,
+    Extension(state): ExtAppState,
+) -> CommonResult<bool> {
+    let pool = state.db.pool();
+
+    let deleted = task::delete_task(pool, task_id, auth.user_id).await?;
+
+    Ok(Json(deleted))
+}
