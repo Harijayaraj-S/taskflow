@@ -7,7 +7,7 @@ use crate::{
     error::CommonResult,
     middleware::auth::AuthUser,
     repositories::task,
-    routes::task::types::{CreateTaskInput, UpdateTaskRequest},
+    routes::task::types::{CreateTaskInput, UpdateTaskRequest, UpdateTaskStatusRequest},
     state::ExtAppState,
 };
 
@@ -61,4 +61,17 @@ pub async fn delete(
     let deleted = task::delete_task(pool, task_id, auth.user_id).await?;
 
     Ok(Json(deleted))
+}
+
+pub async fn update_status(
+    auth: AuthUser,
+    Path(task_id): Path<uuid::Uuid>,
+    Extension(state): ExtAppState,
+    Json(payload): Json<UpdateTaskStatusRequest>,
+) -> CommonResult<Task> {
+    let pool = state.db.pool();
+
+    let task = task::update_status(pool, task_id, auth.user_id, payload.status).await?;
+
+    Ok(Json(task))
 }

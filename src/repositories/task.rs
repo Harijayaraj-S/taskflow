@@ -3,7 +3,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::domain::task::Task;
+use crate::domain::task::{Task, TaskStatus};
 
 pub async fn create(
     pool: &PgPool,
@@ -86,4 +86,26 @@ pub async fn delete_task(
     .await?;
 
     Ok(result.rows_affected() != 0)
+}
+
+pub async fn update_status(
+    pool: &PgPool,
+    task_id: Uuid,
+    user_id: Uuid,
+    status: TaskStatus,
+) -> Result<Task, sqlx::Error> {
+    sqlx::query_as!(
+        Task,
+        r#"
+        UPDATE tasks
+        SET status = COALESCE($3, status)
+        WHERE id = $1 AND user_id = $2
+        RETURNING *
+        "#,
+        task_id,
+        user_id,
+        status.to_string().as_str()
+    )
+    .fetch_one(pool)
+    .await
 }

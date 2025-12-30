@@ -1,7 +1,7 @@
 //! Domain - Task
 
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct Task {
@@ -13,4 +13,12 @@ pub struct Task {
     pub tags: Vec<String>,
     pub created_at: DateTime<Utc>,
     pub modified_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskStatus {
+    Todo,
+    InProgress,
+    Done,
 }
