@@ -94,6 +94,12 @@ pub async fn update_status(
     user_id: Uuid,
     status: TaskStatus,
 ) -> Result<Task, sqlx::Error> {
+    let status_str = match status {
+        TaskStatus::Todo => "todo",
+        TaskStatus::InProgress => "in_progress",
+        TaskStatus::Done => "done",
+    };
+
     sqlx::query_as!(
         Task,
         r#"
@@ -104,7 +110,7 @@ pub async fn update_status(
         "#,
         task_id,
         user_id,
-        status.to_string().as_str()
+        status_str
     )
     .fetch_one(pool)
     .await
