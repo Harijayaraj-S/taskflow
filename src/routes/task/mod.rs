@@ -14,5 +14,5 @@ pub fn routes() -> Router {
         .route("/", get(handlers::list))
         .route("/{id}", patch(handlers::update))
         .route("/{id}", delete(handlers::delete))
-        .route("/{id}", patch(handlers::update_status))
+        .route("/{id}/status", patch(handlers::update_status))
 }
