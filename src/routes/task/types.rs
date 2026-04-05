@@ -1,21 +1,19 @@
 //! Routes - Task - Types
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use uuid::Uuid;
 
 use crate::domain::task::TaskStatus;
 
-#[derive(Deserialize, Serialize, Default)]
-pub struct CreateTaskInput {
+#[derive(Deserialize)]
+pub struct CreateTaskRequest {
+    pub project_id: Uuid,
     pub title: String,
-
-    #[serde(default)]
-    pub description: String,
 }
 
 #[derive(Deserialize)]
-pub struct UpdateTaskRequest {
-    pub title: Option<String>,
-    pub description: Option<String>,
+pub struct ListTasksQuery {
+    pub project_id: Uuid,
 }
 
 #[derive(Deserialize)]

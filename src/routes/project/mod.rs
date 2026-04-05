@@ -1,8 +1,8 @@
-//! Routes - Task - Mod
+//! Routes - Project - Mod
 
 use axum::{
     Router,
-    routing::{delete, get, patch, post},
+    routing::{get, post},
 };
 
 mod handlers;
@@ -12,6 +12,4 @@ pub fn routes() -> Router {
     Router::new()
         .route("/", post(handlers::create))
         .route("/", get(handlers::list))
-        .route("/{id}", patch(handlers::update_status))
-        .route("/{id}", delete(handlers::delete))
 }

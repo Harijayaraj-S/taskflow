@@ -15,8 +15,8 @@ mod middleware;
 mod repositories;
 mod routes;
 mod service;
+mod sse;
 mod state;
-mod ws;
 
 fn tracing_int() -> Result<()> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug"));

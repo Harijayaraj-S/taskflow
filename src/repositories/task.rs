@@ -5,113 +5,84 @@ use uuid::Uuid;
 
 use crate::domain::task::{Task, TaskStatus};
 
-pub async fn create(
+pub async fn create_task(
     pool: &PgPool,
-    user_id: Uuid,
+    project_id: Uuid,
     title: &str,
-    description: &str,
+    created_by: Uuid,
 ) -> Result<Task, sqlx::Error> {
-    sqlx::query_as!(
-        Task,
+    let id = Uuid::new_v4();
+
+    sqlx::query_as::<_, Task>(
         r#"
-        INSERT INTO tasks (id, user_id, title, description)
+        INSERT INTO tasks (id, project_id, title, created_by)
         VALUES ($1, $2, $3, $4)
-        RETURNING
-        id, user_id, title, description, created_at,
-        status, tags, modified_at
+        RETURNING id, project_id, title, description, status, tags,
+                  assigned_to, created_by, created_at, updated_at
         "#,
-        Uuid::new_v4(),
-        user_id,
-        title,
-        description
     )
+    .bind(id)
+    .bind(project_id)
+    .bind(title)
+    .bind(created_by)
     .fetch_one(pool)
     .await
 }
 
-pub async fn list_by_user(pool: &PgPool, user_id: Uuid) -> Result<Vec<Task>, sqlx::Error> {
-    sqlx::query_as!(
-        Task,
+pub async fn list_by_project(pool: &PgPool, project_id: Uuid) -> Result<Vec<Task>, sqlx::Error> {
+    sqlx::query_as::<_, Task>(
         r#"
-        SELECT * FROM tasks
-        WHERE user_id = $1
+        SELECT id, project_id, title, description, status, tags,
+               assigned_to, created_by, created_at, updated_at
+        FROM tasks
+        WHERE project_id = $1
         ORDER BY created_at DESC
         "#,
-        user_id
     )
+    .bind(project_id)
     .fetch_all(pool)
     .await
 }
 
-pub async fn update_task(
-    pool: &sqlx::PgPool,
-    task_id: Uuid,
-    user_id: Uuid,
-    title: Option<&str>,
-    description: Option<&str>,
-) -> Result<Task, sqlx::Error> {
-    sqlx::query_as!(
-        Task,
+pub async fn find_by_id(pool: &PgPool, task_id: Uuid) -> Result<Option<Task>, sqlx::Error> {
+    sqlx::query_as::<_, Task>(
         r#"
-        UPDATE tasks
-        SET
-            title = COALESCE($3, title),
-            description = COALESCE($4, description)
-        WHERE id = $1 AND user_id = $2
-        RETURNING *
+        SELECT id, project_id, title, description, status, tags,
+               assigned_to, created_by, created_at, updated_at
+        FROM tasks
+        WHERE id = $1
         "#,
-        task_id,
-        user_id,
-        title,
-        description
     )
-    .fetch_one(pool)
+    .bind(task_id)
+    .fetch_optional(pool)
     .await
-}
-
-pub async fn delete_task(
-    pool: &sqlx::PgPool,
-    task_id: Uuid,
-    user_id: Uuid,
-) -> Result<bool, sqlx::Error> {
-    let result = sqlx::query!(
-        r#"
-        DELETE FROM tasks
-        WHERE id = $1 AND user_id = $2
-        "#,
-        task_id,
-        user_id
-    )
-    .execute(pool)
-    .await?;
-
-    Ok(result.rows_affected() != 0)
 }
 
 pub async fn update_status(
     pool: &PgPool,
     task_id: Uuid,
-    user_id: Uuid,
     status: TaskStatus,
 ) -> Result<Task, sqlx::Error> {
-    let status_str = match status {
-        TaskStatus::Todo => "todo",
-        TaskStatus::InProgress => "in_progress",
-        TaskStatus::Done => "done",
-    };
-
-    sqlx::query_as!(
-        Task,
+    sqlx::query_as::<_, Task>(
         r#"
         UPDATE tasks
-        SET status = COALESCE($3, status)
-        WHERE id = $1 AND user_id = $2
-        RETURNING *
+        SET status = $2, updated_at = now()
+        WHERE id = $1
+        RETURNING id, project_id, title, description, status, tags,
+                  assigned_to, created_by, created_at, updated_at
         "#,
-        task_id,
-        user_id,
-        status_str
     )
+    .bind(task_id)
+    .bind(status.to_string())
     .fetch_one(pool)
     .await
+}
+
+pub async fn delete_task(pool: &PgPool, task_id: Uuid) -> Result<bool, sqlx::Error> {
+    let result = sqlx::query("DELETE FROM tasks WHERE id = $1")
+        .bind(task_id)
+        .execute(pool)
+        .await?;
+
+    Ok(result.rows_affected() > 0)
 }
