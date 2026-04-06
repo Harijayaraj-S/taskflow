@@ -35,12 +35,12 @@ pub async fn create(
 }
 
 pub async fn list(
-    _auth: AuthUser,
+    auth: AuthUser,
     Extension(state): Extension<Arc<AppState>>,
     Query(query): Query<ListTasksQuery>,
 ) -> CommonResult<Vec<Task>> {
     let pool = state.db.pool();
-    let tasks = task::list_tasks(pool, query.project_id).await?;
+    let tasks = task::list_tasks(pool, query.project_id, auth.user_id).await?;
     Ok(Json(tasks))
 }
 

@@ -53,6 +53,14 @@ function bindEvents() {
     if (e.key === 'Enter') createTask();
   });
 
+  // Invite
+  $('invite-btn').addEventListener('click', toggleInviteUI);
+  $('invite-cancel-btn').addEventListener('click', closeInviteUI);
+  $('invite-send-btn').addEventListener('click', sendInvite);
+  $('invite-email').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') sendInvite();
+  });
+
   // Logout
   $('logout-btn').addEventListener('click', logout);
 
@@ -291,6 +299,52 @@ async function handleCreateProject(e) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// INVITE
+// ═══════════════════════════════════════════════════════════════
+
+function toggleInviteUI() {
+  const dd = $('invite-dropdown');
+  const isHidden = dd.style.display === 'none';
+  if (isHidden) {
+    dd.style.display = 'flex';
+    $('invite-email').focus();
+  } else {
+    closeInviteUI();
+  }
+}
+
+function closeInviteUI() {
+  $('invite-dropdown').style.display = 'none';
+  $('invite-email').value = '';
+}
+
+async function sendInvite() {
+  const emailInput = $('invite-email');
+  const email = emailInput.value.trim();
+  const sendBtn = $('invite-send-btn');
+  
+  if (!email || !currentProjectId) return;
+
+  sendBtn.disabled = true;
+  sendBtn.textContent = 'Sending...';
+
+  try {
+    await apiFetch(`/projects/${currentProjectId}/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+    
+    toast('User invited successfully!');
+    closeInviteUI();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Send Invite';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // TASKS
 // ═══════════════════════════════════════════════════════════════
 
@@ -331,8 +385,8 @@ function renderTasks() {
   // Group by status
   const groups = [
     { key: 'in_progress', label: 'In Progress', items: [] },
-    { key: 'todo',        label: 'To Do',       items: [] },
-    { key: 'done',        label: 'Done',        items: [] },
+    { key: 'todo', label: 'To Do', items: [] },
+    { key: 'done', label: 'Done', items: [] },
   ];
 
   const groupMap = Object.fromEntries(groups.map((g) => [g.key, g]));

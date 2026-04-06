@@ -12,3 +12,12 @@ pub struct Project {
     pub owner_id: Uuid,
     pub created_at: DateTime<Utc>,
 }
+
+#[derive(Debug, FromRow, Serialize, Deserialize)]
+pub struct ProjectMember {
+    pub id: Uuid,
+    pub project_id: Uuid,
+    pub user_id: Uuid,
+    pub role: String,
+    pub created_at: DateTime<Utc>,
+}

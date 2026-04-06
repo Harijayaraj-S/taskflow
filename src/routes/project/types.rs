@@ -6,3 +6,8 @@ use serde::Deserialize;
 pub struct CreateProjectRequest {
     pub name: String,
 }
+
+#[derive(Deserialize)]
+pub struct InviteUserRequest {
+    pub email: String,
+}

@@ -117,6 +117,16 @@
             </div>
           </div>
           <div class="project-header-right">
+            <div class="invite-container" id="invite-container">
+              <button class="btn btn-ghost btn-sm" id="invite-btn">Invite</button>
+              <div class="invite-dropdown" id="invite-dropdown" style="display:none;">
+                <input type="email" id="invite-email" placeholder="Enter email" autocomplete="off" />
+                <div class="invite-actions">
+                  <button class="btn btn-ghost btn-sm" id="invite-cancel-btn">Cancel</button>
+                  <button class="btn btn-primary btn-sm" id="invite-send-btn">Send Invite</button>
+                </div>
+              </div>
+            </div>
             <button class="btn btn-ghost btn-sm" id="logout-btn">Sign Out</button>
           </div>
         </header>

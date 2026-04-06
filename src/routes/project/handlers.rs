@@ -1,10 +1,14 @@
 //! Routes - Project - Handlers
 
-use axum::{Extension, Json};
+use axum::{Extension, Json, extract::Path};
 
 use crate::{
-    domain::project::Project, error::CommonResult, middleware::auth::AuthUser,
-    routes::project::types::CreateProjectRequest, service::project, state::ExtAppState,
+    domain::project::Project,
+    error::CommonResult,
+    middleware::auth::AuthUser,
+    routes::project::types::{CreateProjectRequest, InviteUserRequest},
+    service::project,
+    state::ExtAppState,
 };
 
 pub async fn create(
@@ -21,4 +25,15 @@ pub async fn list(auth: AuthUser, Extension(state): ExtAppState) -> CommonResult
     let pool = state.db.pool();
     let projects = project::list_projects(pool, auth.user_id).await?;
     Ok(Json(projects))
+}
+
+pub async fn invite(
+    auth: AuthUser,
+    Path(project_id): Path<uuid::Uuid>,
+    Extension(state): ExtAppState,
+    Json(payload): Json<InviteUserRequest>,
+) -> CommonResult<()> {
+    let pool = state.db.pool();
+    project::invite_user(pool, project_id, &payload.email, auth.user_id).await?;
+    Ok(Json(()))
 }

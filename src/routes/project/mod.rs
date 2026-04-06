@@ -12,4 +12,5 @@ pub fn routes() -> Router {
     Router::new()
         .route("/", post(handlers::create))
         .route("/", get(handlers::list))
+        .route("/{project_id}/invite", post(handlers::invite))
 }
