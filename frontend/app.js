@@ -1,18 +1,24 @@
-// ─── Taskflow — Frontend App ────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// Taskflow — Frontend Application
+// ═══════════════════════════════════════════════════════════════
 
 const API = window.location.origin;
 
-// ─── State ───
+// ── State ──
 let token = localStorage.getItem('tf_token') || null;
 let currentProjectId = localStorage.getItem('tf_project') || null;
 let projects = [];
 let tasks = [];
 let eventSource = null;
 
-// ─── Boot ───
+// ── DOM Cache ──
+const $ = (id) => document.getElementById(id);
+
+// ── Boot ──
 document.addEventListener('DOMContentLoaded', init);
 
 function init() {
+  bindEvents();
   if (token) {
     showApp();
   } else {
@@ -20,117 +26,105 @@ function init() {
   }
 }
 
-// ─── Auth Helpers ───
-function authHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-}
+// ═══════════════════════════════════════════════════════════════
+// EVENT BINDING
+// ═══════════════════════════════════════════════════════════════
 
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(`${API}${path}`, {
-    ...opts,
-    headers: { ...authHeaders(), ...(opts.headers || {}) },
+function bindEvents() {
+  // Auth
+  $('auth-form').addEventListener('submit', handleAuth);
+  $('auth-toggle-link').addEventListener('click', toggleAuthMode);
+
+  // Sidebar
+  $('new-project-btn').addEventListener('click', openProjectModal);
+  $('sidebar-toggle').addEventListener('click', toggleSidebar);
+
+  // Project Modal
+  $('project-form').addEventListener('submit', handleCreateProject);
+  $('modal-close-btn').addEventListener('click', closeProjectModal);
+  $('modal-cancel-btn').addEventListener('click', closeProjectModal);
+  $('project-modal').addEventListener('click', (e) => {
+    if (e.target === $('project-modal')) closeProjectModal();
   });
 
-  if (res.status === 401) {
-    logout();
-    throw new Error('Unauthorized');
-  }
+  // Tasks
+  $('add-task-btn').addEventListener('click', createTask);
+  $('task-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') createTask();
+  });
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `Request failed: ${res.status}`);
-  }
+  // Logout
+  $('logout-btn').addEventListener('click', logout);
 
-  const contentType = res.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return res.json();
-  }
-  return res.text();
+  // Keyboard — ESC to close modal
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeProjectModal();
+  });
 }
 
-// ─── Toast ───
-function toast(message, type = 'success') {
-  let container = document.getElementById('toast-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'toast-container';
-    container.className = 'toast-container';
-    document.body.appendChild(container);
-  }
+// ═══════════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════════
 
-  const el = document.createElement('div');
-  el.className = `toast toast-${type}`;
-  el.textContent = message;
-  container.appendChild(el);
+let authMode = 'login';
 
-  setTimeout(() => el.remove(), 3000);
-}
-
-// ─── Auth UI ───
 function showAuth() {
-  const app = document.getElementById('app');
-  app.innerHTML = `
-    <header class="header">
-      <h1>Taskflow</h1>
-      <p>Organize. Track. Ship.</p>
-    </header>
-    <div class="auth-section" id="auth-card">
-      <h2 id="auth-title">Sign In</h2>
-      <form class="auth-form" id="auth-form" onsubmit="handleAuth(event)">
-        <input type="email" id="auth-email" placeholder="Email" required autocomplete="email" />
-        <input type="password" id="auth-password" placeholder="Password" required autocomplete="current-password" />
-        <button type="submit" class="btn btn-primary" id="auth-submit">Sign In</button>
-      </form>
-      <div class="auth-toggle">
-        <span id="auth-toggle-text">Don't have an account?</span>
-        <a id="auth-toggle-link" onclick="toggleAuthMode()">Sign Up</a>
-      </div>
-    </div>
-  `;
-  window._authMode = 'login';
+  $('auth-screen').style.display = '';
+  $('app-shell').style.display = 'none';
+  disconnectSSE();
+}
+
+function showApp() {
+  $('auth-screen').style.display = 'none';
+  $('app-shell').style.display = '';
+  loadProjects();
+  connectSSE();
 }
 
 function toggleAuthMode() {
-  const mode = window._authMode === 'login' ? 'signup' : 'login';
-  window._authMode = mode;
+  authMode = authMode === 'login' ? 'signup' : 'login';
 
-  document.getElementById('auth-title').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
-  document.getElementById('auth-submit').textContent = mode === 'login' ? 'Sign In' : 'Sign Up';
-  document.getElementById('auth-toggle-text').textContent =
-    mode === 'login' ? "Don't have an account?" : 'Already have an account?';
-  document.getElementById('auth-toggle-link').textContent =
-    mode === 'login' ? 'Sign Up' : 'Sign In';
+  $('auth-title').textContent =
+    authMode === 'login' ? 'Sign in to your account' : 'Create a new account';
+  $('auth-submit-text').textContent =
+    authMode === 'login' ? 'Sign In' : 'Sign Up';
+  $('auth-toggle-text').textContent =
+    authMode === 'login' ? "Don't have an account?" : 'Already have an account?';
+  $('auth-toggle-link').textContent =
+    authMode === 'login' ? 'Sign Up' : 'Sign In';
 }
 
 async function handleAuth(e) {
   e.preventDefault();
-  const email = document.getElementById('auth-email').value.trim();
-  const password = document.getElementById('auth-password').value;
-  const mode = window._authMode;
-  const endpoint = mode === 'login' ? '/auth/login' : '/auth/signup';
+  const email = $('auth-email').value.trim();
+  const password = $('auth-password').value;
+  const endpoint = authMode === 'login' ? '/auth/login' : '/auth/signup';
+
+  $('auth-submit-text').style.display = 'none';
+  $('auth-spinner').style.display = '';
 
   try {
-    const data = await fetch(`${API}${endpoint}`, {
+    const res = await fetch(`${API}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
 
-    if (!data.ok) {
-      const err = await data.text();
+    if (!res.ok) {
+      const err = await res.text();
       throw new Error(err || 'Authentication failed');
     }
 
-    const result = await data.json();
-    token = result.access_token;
+    const data = await res.json();
+    token = data.access_token;
     localStorage.setItem('tf_token', token);
-    toast(mode === 'login' ? 'Welcome back!' : 'Account created!');
+    toast(authMode === 'login' ? 'Welcome back!' : 'Account created!');
     showApp();
   } catch (err) {
     toast(err.message, 'error');
+  } finally {
+    $('auth-submit-text').style.display = '';
+    $('auth-spinner').style.display = 'none';
   }
 }
 
@@ -143,110 +137,142 @@ function logout() {
   showAuth();
 }
 
-// ─── Main App UI ───
-function showApp() {
-  const app = document.getElementById('app');
-  app.innerHTML = `
-    <header class="header">
-      <h1>Taskflow</h1>
-      <p>Organize. Track. Ship.</p>
-      <div class="sse-status disconnected" id="sse-indicator">
-        <span class="sse-dot"></span>
-        <span id="sse-label">Disconnected</span>
-      </div>
-    </header>
+// ═══════════════════════════════════════════════════════════════
+// API HELPERS
+// ═══════════════════════════════════════════════════════════════
 
-    <div class="user-bar" id="user-bar">
-      <span>Signed in</span>
-      <button onclick="logout()">Sign Out</button>
-    </div>
-
-    <!-- Projects Section -->
-    <section class="section" id="project-section">
-      <div class="section-title">Project</div>
-      <div class="project-row">
-        <select id="project-select" onchange="onProjectChange()">
-          <option value="">— Select a project —</option>
-        </select>
-        <button class="btn btn-ghost btn-sm" onclick="toggleNewProject()" id="new-project-toggle">+ New</button>
-      </div>
-      <div class="new-project-row" id="new-project-row">
-        <input type="text" id="new-project-name" placeholder="Project name" />
-        <button class="btn btn-primary btn-sm" onclick="createProject()">Create</button>
-        <button class="btn btn-ghost btn-sm" onclick="toggleNewProject()">Cancel</button>
-      </div>
-    </section>
-
-    <!-- Tasks Section -->
-    <section class="section" id="task-section" style="display:none;">
-      <div class="section-title">Tasks</div>
-      <div class="input-row">
-        <input type="text" id="task-title" placeholder="What needs to be done?" onkeydown="if(event.key==='Enter') createTask()" />
-        <button class="btn btn-primary" onclick="createTask()">Add</button>
-      </div>
-      <div class="task-list" id="task-list">
-        <div class="loading-bar"><span class="spinner"></span></div>
-      </div>
-    </section>
-  `;
-
-  loadProjects();
-  connectSSE();
+function authHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
 }
 
-// ─── Projects ───
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(`${API}${path}`, {
+    ...opts,
+    headers: { ...authHeaders(), ...(opts.headers || {}) },
+  });
+
+  if (res.status === 401) {
+    logout();
+    throw new Error('Session expired');
+  }
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `Request failed: ${res.status}`);
+  }
+
+  const ct = res.headers.get('content-type');
+  return ct && ct.includes('application/json') ? res.json() : res.text();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROJECTS
+// ═══════════════════════════════════════════════════════════════
+
 async function loadProjects() {
   try {
     projects = await apiFetch('/projects');
-    renderProjectDropdown();
+    renderProjects();
   } catch (err) {
     toast('Failed to load projects', 'error');
   }
 }
 
-function renderProjectDropdown() {
-  const select = document.getElementById('project-select');
-  select.innerHTML = '<option value="">— Select a project —</option>';
+function renderProjects() {
+  const list = $('project-list');
 
-  projects.forEach((p) => {
-    const opt = document.createElement('option');
-    opt.value = p.id;
-    opt.textContent = p.name;
-    if (p.id === currentProjectId) opt.selected = true;
-    select.appendChild(opt);
+  if (!projects.length) {
+    list.innerHTML = `
+      <li class="sidebar-empty">
+        Create your first project<br />to get started.
+      </li>
+    `;
+    showEmptyMain();
+    return;
+  }
+
+  list.innerHTML = projects
+    .map((p) => {
+      const initial = p.name.charAt(0).toUpperCase();
+      const isActive = p.id === currentProjectId;
+      return `
+        <li class="project-item${isActive ? ' active' : ''}"
+            data-id="${p.id}"
+            role="button"
+            tabindex="0">
+          <span class="project-icon">${escapeHtml(initial)}</span>
+          <span class="project-name">${escapeHtml(p.name)}</span>
+        </li>
+      `;
+    })
+    .join('');
+
+  // Bind click events
+  list.querySelectorAll('.project-item').forEach((el) => {
+    el.addEventListener('click', () => selectProject(el.dataset.id));
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') selectProject(el.dataset.id);
+    });
   });
 
-  // Auto-select if stored project exists
+  // Restore selection
   if (currentProjectId && projects.some((p) => p.id === currentProjectId)) {
-    onProjectChange();
-  }
-}
-
-function onProjectChange() {
-  const select = document.getElementById('project-select');
-  currentProjectId = select.value || null;
-
-  if (currentProjectId) {
-    localStorage.setItem('tf_project', currentProjectId);
-    document.getElementById('task-section').style.display = '';
-    loadTasks();
+    selectProject(currentProjectId, false);
   } else {
-    localStorage.removeItem('tf_project');
-    document.getElementById('task-section').style.display = 'none';
+    showEmptyMain();
   }
 }
 
-function toggleNewProject() {
-  const row = document.getElementById('new-project-row');
-  row.classList.toggle('active');
-  if (row.classList.contains('active')) {
-    document.getElementById('new-project-name').focus();
+function selectProject(id, closeMobile = true) {
+  currentProjectId = id;
+  localStorage.setItem('tf_project', id);
+
+  // Update active state in sidebar
+  document.querySelectorAll('.project-item').forEach((el) => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+
+  // Show project view
+  $('empty-main').style.display = 'none';
+  $('project-view').style.display = '';
+
+  // Set project title
+  const project = projects.find((p) => p.id === id);
+  if (project) {
+    $('project-title').textContent = project.name;
+  }
+
+  loadTasks();
+
+  // Close mobile sidebar
+  if (closeMobile && window.innerWidth <= 768) {
+    closeSidebar();
   }
 }
 
-async function createProject() {
-  const nameInput = document.getElementById('new-project-name');
-  const name = nameInput.value.trim();
+function showEmptyMain() {
+  $('empty-main').style.display = '';
+  $('project-view').style.display = 'none';
+}
+
+// ── Project Modal ──
+
+function openProjectModal() {
+  $('project-modal').style.display = '';
+  $('project-name-input').value = '';
+  setTimeout(() => $('project-name-input').focus(), 100);
+}
+
+function closeProjectModal() {
+  $('project-modal').style.display = 'none';
+}
+
+async function handleCreateProject(e) {
+  e.preventDefault();
+  const name = $('project-name-input').value.trim();
   if (!name) return;
 
   try {
@@ -254,100 +280,153 @@ async function createProject() {
       method: 'POST',
       body: JSON.stringify({ name }),
     });
-
     toast(`Project "${p.name}" created`);
-    nameInput.value = '';
-    toggleNewProject();
-
+    closeProjectModal();
     currentProjectId = p.id;
     localStorage.setItem('tf_project', p.id);
     await loadProjects();
-    document.getElementById('task-section').style.display = '';
-    loadTasks();
   } catch (err) {
     toast(err.message, 'error');
   }
 }
 
-// ─── Tasks ───
+// ═══════════════════════════════════════════════════════════════
+// TASKS
+// ═══════════════════════════════════════════════════════════════
+
 async function loadTasks() {
   if (!currentProjectId) return;
+
+  const list = $('task-list');
+  list.innerHTML = `
+    <div class="loading-state">
+      <span class="spinner"></span>
+      <span>Loading tasks…</span>
+    </div>
+  `;
 
   try {
     tasks = await apiFetch(`/tasks?project_id=${currentProjectId}`);
     renderTasks();
   } catch (err) {
     toast('Failed to load tasks', 'error');
+    list.innerHTML = '';
   }
 }
 
 function renderTasks() {
-  const list = document.getElementById('task-list');
+  const list = $('task-list');
 
   if (!tasks.length) {
     list.innerHTML = `
-      <div class="empty-state">
-        <div class="icon">📋</div>
-        <div>No tasks yet. Add one above!</div>
+      <div class="task-empty-state">
+        <div class="task-empty-icon">📋</div>
+        <h3>No tasks yet</h3>
+        <p>Add a task above to get started.</p>
       </div>
     `;
     return;
   }
 
-  // Sort: todo → in_progress → done
-  const order = { todo: 0, in_progress: 1, done: 2 };
-  const sorted = [...tasks].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+  // Group by status
+  const groups = [
+    { key: 'in_progress', label: 'In Progress', items: [] },
+    { key: 'todo',        label: 'To Do',       items: [] },
+    { key: 'done',        label: 'Done',        items: [] },
+  ];
 
-  list.innerHTML = sorted.map((t) => {
-    const nextStatus = getNextStatus(t.status);
-    const statusIcon = {
-      todo: '○',
-      in_progress: '◐',
-      done: '●',
-    }[t.status] || '○';
+  const groupMap = Object.fromEntries(groups.map((g) => [g.key, g]));
 
-    const statusLabel = {
-      todo: 'To Do',
-      in_progress: 'In Progress',
-      done: 'Done',
-    }[t.status] || t.status;
+  tasks.forEach((t) => {
+    const group = groupMap[t.status];
+    if (group) group.items.push(t);
+    else groupMap.todo.items.push(t);
+  });
 
-    const nextLabel = {
-      todo: 'Start',
-      in_progress: 'Complete',
-      done: 'Reopen',
-    }[t.status] || 'Next';
+  const activeGroups = groups.filter((g) => g.items.length > 0);
 
-    return `
-      <div class="task-item ${t.status}" data-id="${t.id}">
-        <div class="task-info">
-          <div class="task-title">${escapeHtml(t.title)}</div>
-          <span class="badge badge-${t.status}">${statusIcon} ${statusLabel}</span>
+  list.innerHTML = activeGroups
+    .map(
+      (group) => `
+      <div class="task-group">
+        <div class="task-group-label">
+          ${group.label}
+          <span class="task-group-count">${group.items.length}</span>
         </div>
-        <div class="task-actions">
-          <button class="btn btn-ghost btn-sm" onclick="updateTaskStatus('${t.id}', '${nextStatus}')" title="Set to ${nextStatus}">
-            ${nextLabel}
-          </button>
-          <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')" title="Delete task">
-            ✕
-          </button>
-        </div>
+        ${group.items.map((t) => renderTaskItem(t)).join('')}
       </div>
-    `;
-  }).join('');
+    `
+    )
+    .join('');
+
+  // Bind task events
+  list.querySelectorAll('[data-action="toggle"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.closest('.task-item').dataset.id;
+      const status = btn.dataset.nextStatus;
+      updateTaskStatus(id, status);
+    });
+  });
+
+  list.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.closest('.task-item').dataset.id;
+      deleteTask(id);
+    });
+  });
+}
+
+function renderTaskItem(task) {
+  const nextStatus = getNextStatus(task.status);
+  const statusLabel = {
+    todo: 'To Do',
+    in_progress: 'In Progress',
+    done: 'Done',
+  }[task.status] || task.status;
+
+  const nextIcon = {
+    todo: '▶',       // Start
+    in_progress: '✓', // Complete
+    done: '↺',        // Reopen
+  }[task.status] || '▶';
+
+  const nextTooltip = {
+    todo: 'Start',
+    in_progress: 'Mark Done',
+    done: 'Reopen',
+  }[task.status] || 'Next';
+
+  return `
+    <div class="task-item status-${task.status}" data-id="${task.id}">
+      <div class="task-checkbox ${task.status}"
+           data-action="toggle"
+           data-next-status="${nextStatus}"
+           title="${nextTooltip}"
+           role="button"
+           tabindex="0"></div>
+      <div class="task-body">
+        <div class="task-title">${escapeHtml(task.title)}</div>
+        <span class="task-status-label ${task.status}">${statusLabel}</span>
+      </div>
+      <div class="task-actions">
+        <button class="task-action-btn" data-action="toggle" data-next-status="${nextStatus}" title="${nextTooltip}">
+          ${nextIcon}
+        </button>
+        <button class="task-action-btn delete" data-action="delete" title="Delete">
+          ✕
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 function getNextStatus(current) {
-  switch (current) {
-    case 'todo': return 'in_progress';
-    case 'in_progress': return 'done';
-    case 'done': return 'todo';
-    default: return 'todo';
-  }
+  const cycle = { todo: 'in_progress', in_progress: 'done', done: 'todo' };
+  return cycle[current] || 'todo';
 }
 
 async function createTask() {
-  const input = document.getElementById('task-title');
+  const input = $('task-input');
   const title = input.value.trim();
   if (!title || !currentProjectId) return;
 
@@ -358,7 +437,6 @@ async function createTask() {
     });
     input.value = '';
     toast('Task added');
-    // SSE will trigger reload, but also load here for snappiness
     loadTasks();
   } catch (err) {
     toast(err.message, 'error');
@@ -387,30 +465,32 @@ async function deleteTask(taskId) {
   }
 }
 
-// ─── SSE ───
+// ═══════════════════════════════════════════════════════════════
+// SSE
+// ═══════════════════════════════════════════════════════════════
+
 function connectSSE() {
   disconnectSSE();
 
   eventSource = new EventSource(`${API}/events`);
 
   eventSource.onopen = () => {
-    const el = document.getElementById('sse-indicator');
+    const el = $('sse-indicator');
     if (el) {
-      el.className = 'sse-status connected';
-      document.getElementById('sse-label').textContent = 'Live';
+      el.className = 'sse-badge connected';
+      $('sse-label').textContent = 'Live';
     }
   };
 
   eventSource.onmessage = () => {
-    // Reload tasks on any event
     if (currentProjectId) loadTasks();
   };
 
   eventSource.onerror = () => {
-    const el = document.getElementById('sse-indicator');
+    const el = $('sse-indicator');
     if (el) {
-      el.className = 'sse-status disconnected';
-      document.getElementById('sse-label').textContent = 'Reconnecting…';
+      el.className = 'sse-badge disconnected';
+      $('sse-label').textContent = 'Disconnected';
     }
   };
 }
@@ -422,7 +502,52 @@ function disconnectSSE() {
   }
 }
 
-// ─── Utilities ───
+// ═══════════════════════════════════════════════════════════════
+// SIDEBAR — MOBILE
+// ═══════════════════════════════════════════════════════════════
+
+function toggleSidebar() {
+  const sidebar = $('sidebar');
+  sidebar.classList.toggle('open');
+
+  if (sidebar.classList.contains('open')) {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    backdrop.id = 'sidebar-backdrop';
+    backdrop.addEventListener('click', closeSidebar);
+    document.body.appendChild(backdrop);
+  } else {
+    removeBackdrop();
+  }
+}
+
+function closeSidebar() {
+  $('sidebar').classList.remove('open');
+  removeBackdrop();
+}
+
+function removeBackdrop() {
+  const bd = $('sidebar-backdrop');
+  if (bd) bd.remove();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════════
+
+function toast(message, type = 'success') {
+  const container = $('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════════
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
