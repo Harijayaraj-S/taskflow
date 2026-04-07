@@ -21,3 +21,10 @@ pub struct ProjectMember {
     pub role: String,
     pub created_at: DateTime<Utc>,
 }
+
+#[derive(Debug, FromRow, Serialize, Deserialize)]
+pub struct ProjectMemberItem {
+    pub name: String,
+    pub email: String,
+    pub role: String,
+}

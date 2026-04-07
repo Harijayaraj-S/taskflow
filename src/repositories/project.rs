@@ -3,7 +3,7 @@
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::domain::project::Project;
+use crate::domain::project::{Project, ProjectMemberItem};
 
 pub async fn create_project(
     pool: &PgPool,
@@ -104,4 +104,22 @@ pub async fn is_member(
     .await?;
 
     Ok(exists)
+}
+
+pub async fn get_members_by_id(
+    pool: &PgPool,
+    project_id: Uuid,
+) -> Result<Vec<ProjectMemberItem>, sqlx::Error> {
+    sqlx::query_as::<_, ProjectMemberItem>(
+        r#"
+        SELECT u.email AS name, u.email, pm.role
+        FROM projects p
+        JOIN project_members pm ON p.id = pm.project_id
+        JOIN users u ON pm.user_id = u.id
+        WHERE pm.project_id = $1
+        "#,
+    )
+    .bind(project_id)
+    .fetch_all(pool)
+    .await
 }

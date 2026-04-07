@@ -254,6 +254,7 @@ function selectProject(id, closeMobile = true) {
   }
 
   loadTasks();
+  loadMembers();
 
   // Close mobile sidebar
   if (closeMobile && window.innerWidth <= 768) {
@@ -322,7 +323,7 @@ async function sendInvite() {
   const emailInput = $('invite-email');
   const email = emailInput.value.trim();
   const sendBtn = $('invite-send-btn');
-  
+
   if (!email || !currentProjectId) return;
 
   sendBtn.disabled = true;
@@ -333,15 +334,77 @@ async function sendInvite() {
       method: 'POST',
       body: JSON.stringify({ email })
     });
-    
+
     toast('User invited successfully!');
     closeInviteUI();
+    loadMembers();
   } catch (err) {
     toast(err.message, 'error');
   } finally {
     sendBtn.disabled = false;
     sendBtn.textContent = 'Send Invite';
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MEMBERS
+// ═══════════════════════════════════════════════════════════════
+
+let members = [];
+
+async function loadMembers() {
+  if (!currentProjectId) return;
+
+  const container = $('project-members');
+  if (container) {
+    container.innerHTML = '<div class="member-avatars"><span class="spinner-sm" style="border-top-color: var(--text-muted); border-color: rgba(255,255,255,0.1); margin: 0 8px;"></span></div>';
+  }
+
+  try {
+    members = await apiFetch(`/projects/${currentProjectId}/members`);
+    renderMembers();
+  } catch (err) {
+    if (container) container.innerHTML = '';
+  }
+}
+
+function renderMembers() {
+  const container = $('project-members');
+  if (!container) return;
+
+  if (!members || members.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const maxDisplay = 5;
+  const displayMembers = members.slice(0, maxDisplay);
+  const extraCount = members.length - maxDisplay;
+
+  let html = '<div class="member-avatars">';
+
+  displayMembers.forEach(m => {
+    const initial = (m.name || m.email || '?').charAt(0).toUpperCase();
+    const isOwner = m.role === 'owner';
+    const title = m.email + (isOwner ? ' (Owner)' : '');
+
+    html += `
+      <div class="member-avatar ${isOwner ? 'owner' : ''}" title="${title}">
+        ${escapeHtml(initial)}
+      </div>
+    `;
+  });
+
+  if (extraCount > 0) {
+    html += `
+      <div class="member-avatar extra" title="+${extraCount} more members">
+        +${extraCount}
+      </div>
+    `;
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 // ═══════════════════════════════════════════════════════════════

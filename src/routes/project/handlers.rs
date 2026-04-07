@@ -3,9 +3,10 @@
 use axum::{Extension, Json, extract::Path};
 
 use crate::{
-    domain::project::Project,
+    domain::project::{Project, ProjectMemberItem},
     error::CommonResult,
     middleware::auth::AuthUser,
+    repositories,
     routes::project::types::{CreateProjectRequest, InviteUserRequest},
     service::project,
     state::ExtAppState,
@@ -36,4 +37,15 @@ pub async fn invite(
     let pool = state.db.pool();
     project::invite_user(pool, project_id, &payload.email, auth.user_id).await?;
     Ok(Json(()))
+}
+
+pub async fn members(
+    _auth: AuthUser,
+    Path(project_id): Path<uuid::Uuid>,
+    Extension(state): ExtAppState,
+) -> CommonResult<Vec<ProjectMemberItem>> {
+    let pool = state.db.pool();
+    let members = repositories::project::get_members_by_id(pool, project_id).await?;
+
+    Ok(Json(members))
 }

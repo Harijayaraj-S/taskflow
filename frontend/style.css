@@ -469,6 +469,62 @@ input {
   gap: 8px;
 }
 
+/* ── Project Members ── */
+#project-members {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.member-avatars {
+  display: flex;
+  align-items: center;
+}
+
+.member-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: -6px;
+  position: relative;
+  transition: all var(--duration) var(--ease);
+  cursor: pointer;
+}
+
+.member-avatar:first-child {
+  margin-left: 0;
+}
+
+.member-avatar:hover {
+  z-index: 10;
+  transform: translateY(-2px);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
+.member-avatar.owner {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.member-avatar.owner:hover {
+  border-color: var(--accent-hover);
+}
+
+.member-avatar.extra {
+  font-size: 0.7rem;
+  background: var(--bg-surface);
+}
+
 /* ── SSE Badge ── */
 .sse-badge {
   display: inline-flex;
@@ -561,7 +617,7 @@ input {
   gap: 6px;
 }
 
-.task-group + .task-group {
+.task-group+.task-group {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--border);
